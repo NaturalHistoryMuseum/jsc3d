@@ -28,7 +28,11 @@
   },
   "main": "./index.js",
   "browser": {
-    "./index.js": "./dist/jsc3d.js",
+    "./index.js": "./dist/index.js",
     "./ctm-loader": "./dist/ctm-loader.js"
-  }
+  },
+  "files": [
+    "dist/*",
+    "*.js"
+  ]
 }
