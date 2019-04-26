@@ -4,8 +4,8 @@
   "description": "A fork of the 3d model viewer with CJS-module compatibility",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rollup jsc3d/index.js jsc3d/loaders/*.js --format cjs --dir dist",
-    "prepare": "npm run build"
+    "build": "./build/build.sh",
+    "prepare": "./build/build.sh"
   },
   "repository": {
     "type": "git",
