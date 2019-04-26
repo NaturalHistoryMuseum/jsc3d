@@ -1,6 +1,6 @@
 /**
  * @preserve Copyright (c) 2011~2014 Humu <humu2009@gmail.com>
- * This file is part of jsc3d project, which is freely distributable under the 
+ * This file is part of jsc3d project, which is freely distributable under the
  * terms of the MIT license.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,66 +26,81 @@
 /**
 	@namespace JSC3D
  */
-var JSC3D = JSC3D || {};
+var JSC3D = {};
 
+import PlatformInfo from './utils/platform-info';
+import Math3D from './utils/math3d';
+import Mesh from './utils/mesh';
+import Scene from './utils/scene';
+import Texture from './utils/texture'
+import WebGLRenderBackend from './utils/webgl'
+
+// Prevent hammer throwing on SSR
+const Hammer = (() => {
+	try {
+		return require('hammerjs');
+	} catch (e) {
+		return null;
+	}
+})();
 
 /**
 	@class Viewer
 
-	Viewer is the main class of JSC3D. It provides presentation of and interaction with a simple static 3D scene 
-	which can either be given as the url of the scene file, or be manually constructed and passed in. It 
+	Viewer is the main class of JSC3D. It provides presentation of and interaction with a simple static 3D scene
+	which can either be given as the url of the scene file, or be manually constructed and passed in. It
 	also provides some settings to adjust the mode and quality of the rendering.<br /><br />
 
 	Viewer should be constructed with an existing canvas object where to perform the rendering.<br /><br />
 
 	Viewer provides 3 way to specify the scene:<br />
-	1. Use setParameter() method before initilization and set 'SceneUrl' parameter with a valid url  
+	1. Use setParameter() method before initilization and set 'SceneUrl' parameter with a valid url
 	   that describes where to load the scene. <br />
 	2. Use replaceSceneFromUrl() method, passing in a valid url to load/replace scene at runtime.<br />
-	3. Use replaceScene() method, passing in a manually constructed scene object to replace the current one 
+	3. Use replaceScene() method, passing in a manually constructed scene object to replace the current one
 	   at runtime.<br />
  */
 JSC3D.Viewer = function(canvas, parameters) {
 	if(parameters)
 		this.params = {
-			SceneUrl:			parameters.SceneUrl || '', 
-			InitRotationX:		parameters.InitRotationX || 0, 
-			InitRotationY:		parameters.InitRotationY || 0, 
-			InitRotationZ:		parameters.InitRotationZ || 0, 
-			ModelColor:			parameters.ModelColor || '#caa618', 
-			BackgroundColor1:	parameters.BackgroundColor1 || '#ffffff', 
-			BackgroundColor2:	parameters.BackgroundColor2 || '#383840', 
-			BackgroundImageUrl:	parameters.BackgroundImageUrl || '', 
-			Background:			parameters.Background || 'on', 
-			RenderMode:			parameters.RenderMode || 'flat', 
-			Definition:			parameters.Definition || 'standard', 
-			FaceCulling:		parameters.FaceCulling || 'on', 
-			MipMapping:			parameters.MipMapping || 'off', 
-			CreaseAngle:		parameters.CreaseAngle || -180, 
-			SphereMapUrl:		parameters.SphereMapUrl || '', 
-			ProgressBar:		parameters.ProgressBar || 'on', 
-			Renderer:			parameters.Renderer || '', 
+			SceneUrl:			parameters.SceneUrl || '',
+			InitRotationX:		parameters.InitRotationX || 0,
+			InitRotationY:		parameters.InitRotationY || 0,
+			InitRotationZ:		parameters.InitRotationZ || 0,
+			ModelColor:			parameters.ModelColor || '#caa618',
+			BackgroundColor1:	parameters.BackgroundColor1 || '#ffffff',
+			BackgroundColor2:	parameters.BackgroundColor2 || '#383840',
+			BackgroundImageUrl:	parameters.BackgroundImageUrl || '',
+			Background:			parameters.Background || 'on',
+			RenderMode:			parameters.RenderMode || 'flat',
+			Definition:			parameters.Definition || 'standard',
+			FaceCulling:		parameters.FaceCulling || 'on',
+			MipMapping:			parameters.MipMapping || 'off',
+			CreaseAngle:		parameters.CreaseAngle || -180,
+			SphereMapUrl:		parameters.SphereMapUrl || '',
+			ProgressBar:		parameters.ProgressBar || 'on',
+			Renderer:			parameters.Renderer || '',
 			LocalBuffers:		parameters.LocalBuffers || 'retain'
 		};
 	else
 		this.params = {
-			SceneUrl: '', 
-			InitRotationX: 0, 
-			InitRotationY: 0, 
-			InitRotationZ: 0, 
-			ModelColor: '#caa618', 
-			BackgroundColor1: '#ffffff', 
-			BackgroundColor2: '#383840', 
-			BackgroundImageUrl: '', 
-			Background: 'on', 
-			RenderMode: 'flat', 
-			Definition: 'standard', 
-			FaceCulling: 'on', 
-			MipMapping: 'off', 
-			CreaseAngle: -180, 
-			SphereMapUrl: '', 
-			ProgressBar: 'on', 
-			Renderer: '', 
+			SceneUrl: '',
+			InitRotationX: 0,
+			InitRotationY: 0,
+			InitRotationZ: 0,
+			ModelColor: '#caa618',
+			BackgroundColor1: '#ffffff',
+			BackgroundColor2: '#383840',
+			BackgroundImageUrl: '',
+			Background: 'on',
+			RenderMode: 'flat',
+			Definition: 'standard',
+			FaceCulling: 'on',
+			MipMapping: 'off',
+			CreaseAngle: -180,
+			SphereMapUrl: '',
+			ProgressBar: 'on',
+			Renderer: '',
 			LocalBuffers: 'retain'
 		};
 
@@ -158,17 +173,17 @@ JSC3D.Viewer = function(canvas, parameters) {
 	// setup input handlers.
 	// compatibility for touch devices is taken into account
 	var self = this;
-	if(!JSC3D.PlatformInfo.isTouchDevice) {
+	if(!PlatformInfo.isTouchDevice) {
 		this.canvas.addEventListener('mousedown', function(e){self.mouseDownHandler(e);}, false);
 		this.canvas.addEventListener('mouseup', function(e){self.mouseUpHandler(e);}, false);
 		this.canvas.addEventListener('mousemove', function(e){self.mouseMoveHandler(e);}, false);
-		this.canvas.addEventListener(JSC3D.PlatformInfo.browser == 'firefox' ? 'DOMMouseScroll' : 'mousewheel', 
+		this.canvas.addEventListener(PlatformInfo.browser == 'firefox' ? 'DOMMouseScroll' : 'mousewheel',
 									 function(e){self.mouseWheelHandler(e);}, false);
 		document.addEventListener('keydown', function(e){self.keyDownHandler(e);}, false);
 		document.addEventListener('keyup', function(e){self.keyUpHandler(e);}, false);
 	}
-	else if(JSC3D.Hammer) {
-		JSC3D.Hammer(this.canvas).on('touch release hold drag pinch transformend', function(e){self.gestureHandler(e);});
+	else if(Hammer) {
+		Hammer(this.canvas).on('touch release hold drag pinch transformend', function(e){self.gestureHandler(e);});
 	}
 	else {
 		this.canvas.addEventListener('touchstart', function(e){self.touchStartHandler(e);}, false);
@@ -228,17 +243,16 @@ JSC3D.Viewer.prototype.init = function() {
 	this.releaseLocalBuffers = this.params['LocalBuffers'].toLowerCase() == 'release';
 
 	// Create WebGL render back-end if it is assigned to.
-	if(this.useWebGL && JSC3D.PlatformInfo.supportWebGL && JSC3D.WebGLRenderBackend) {
+	if(this.useWebGL && PlatformInfo.supportWebGL && WebGLRenderBackend) {
 		try {
-			this.webglBackend = new JSC3D.WebGLRenderBackend(this.canvas, this.releaseLocalBuffers);
+			this.webglBackend = new WebGLRenderBackend(this.canvas, this.releaseLocalBuffers);
 		} catch(e){}
 	}
 
 	// Fall back to software rendering when WebGL is not assigned or unavailable.
 	if(!this.webglBackend) {
 		if(this.useWebGL) {
-			if(JSC3D.console)
-				JSC3D.console.logWarning('WebGL is not available. Software rendering is enabled instead.');
+				console.logWarning('WebGL is not available. Software rendering is enabled instead.');
 		}
 		try {
 			this.ctx2d = this.canvas.getContext('2d');
@@ -252,7 +266,7 @@ JSC3D.Viewer.prototype.init = function() {
 
 	if(this.canvas.width <= 2 || this.canvas.height <= 2)
 		this.definition = 'standard';
-	
+
 	// calculate dimensions of frame buffers
 	switch(this.definition) {
 	case 'low':
@@ -308,7 +322,7 @@ JSC3D.Viewer.prototype.init = function() {
 
 	// load scene if any
 	this.loadScene();
-	
+
 	// load sphere mapping image if any
 	this.setSphereMapFromUrl(this.sphereMapUrl);
 };
@@ -370,7 +384,7 @@ JSC3D.Viewer.prototype.setDefinition = function(definition) {
 
 	if(definition == this.definition)
 		return;
-	
+
 	this.params['Definition'] = definition;
 	this.definition = definition;
 
@@ -457,7 +471,7 @@ JSC3D.Viewer.prototype.setSphereMapFromUrl = function(sphereMapUrl) {
 	}
 
 	var self = this;
-	var newMap = new JSC3D.Texture;
+	var newMap = new Texture;
 
 	newMap.onready = function() {
 		self.sphereMap = newMap;
@@ -479,8 +493,8 @@ JSC3D.Viewer.prototype.enableDefaultInputHandler = function(enabled) {
 	Set control of mouse pointer.
 	Available options are:<br />
 	'<b>default</b>':	default mouse control will be used;<br />
-	'<b>free</b>':		this tells {JSC3D.Viewer} a user-defined mouse control will be adopted. 
-						This is often used together with viewer.enableDefaultInputHandler(false) 
+	'<b>free</b>':		this tells {JSC3D.Viewer} a user-defined mouse control will be adopted.
+						This is often used together with viewer.enableDefaultInputHandler(false)
 						and viewer.onmousedown, viewer.onmouseup and/or viewer.onmousemove overridden.<br />
 	'<b>rotate</b>':	mouse will be used to rotate the scene;<br />
 	'<b>zoom</b>':		mouse will be used to do zooming.<br />
@@ -513,7 +527,7 @@ JSC3D.Viewer.prototype.replaceSceneFromUrl = function(sceneUrl) {
 
 /**
 	Replace the current scene with a given scene.
-	@param {JSC3D.Scene} scene the given scene.
+	@param {Scene} scene the given scene.
  */
 JSC3D.Viewer.prototype.replaceScene = function(scene) {
 	this.params['SceneUrl'] = '';
@@ -538,7 +552,7 @@ JSC3D.Viewer.prototype.resetScene = function() {
 
 /**
 	Get the current scene.
-	@returns {JSC3D.Scene} the current scene.
+	@returns {Scene} the current scene.
  */
 JSC3D.Viewer.prototype.getScene = function() {
 	return this.scene;
@@ -559,7 +573,7 @@ JSC3D.Viewer.prototype.pick = function(clientX, clientY) {
 
 	pickInfo.canvasX = canvasX;
 	pickInfo.canvasY = canvasY;
-	
+
 	var pickedId = 0;
 	if(this.webglBackend) {
 		pickedId = this.webglBackend.pick(canvasX, canvasY);
@@ -567,8 +581,8 @@ JSC3D.Viewer.prototype.pick = function(clientX, clientY) {
 	else {
 		var frameX = canvasX;
 		var frameY = canvasY;
-		if( this.selectionBuffer != null && 
-			canvasX >= 0 && canvasX < this.canvas.width && 
+		if( this.selectionBuffer != null &&
+			canvasX >= 0 && canvasX < this.canvas.width &&
 			canvasY >= 0 && canvasY < this.canvas.height ) {
 			switch(this.definition) {
 			case 'low':
@@ -769,7 +783,7 @@ JSC3D.Viewer.prototype.mouseWheelHandler = function(e) {
 	this.mouseDownX = -1;
 	this.mouseDownY = -1;
 
-	this.zoomFactor *= (JSC3D.PlatformInfo.browser == 'firefox' ? -e.detail : e.wheelDelta) < 0 ? 1.1 : 0.91;
+	this.zoomFactor *= (PlatformInfo.browser == 'firefox' ? -e.detail : e.wheelDelta) < 0 ? 1.1 : 0.91;
 	this.update();
 };
 
@@ -977,7 +991,7 @@ JSC3D.Viewer.prototype.gestureHandler = function(e) {
 	case 'transformend':
 		/*
 		 * Reset the flag to enable dragging rotation again after a delay of 0.25s after the end of a zooming.
-		 * This fixed unnecessary rotation at the end of a zooming when one finger has leaved the touch device 
+		 * This fixed unnecessary rotation at the end of a zooming when one finger has leaved the touch device
 		 * while the other still stays on it sliding.
 		 * By Jeremy Ellis <jeremy.ellis@mpsd.ca>
 		 */
@@ -1022,20 +1036,18 @@ JSC3D.Viewer.prototype.loadScene = function() {
 	var lastSlashAt = sceneUrlNoQuery.lastIndexOf('/');
 	if(lastSlashAt == -1)
 		lastSlashAt = sceneUrlNoQuery.lastIndexOf('\\');
-	
+
 	var fileName = sceneUrlNoQuery.substring(lastSlashAt + 1);
 	var lastDotAt = fileName.lastIndexOf('.');
 	if(lastDotAt == -1) {
-		if(JSC3D.console)
-			JSC3D.console.logError('Cannot get file format for the lack of file extension.');
+			console.logError('Cannot get file format for the lack of file extension.');
 		return false;
 	}
 
 	var fileExtName = fileName.substring(lastDotAt + 1);
 	var loader = JSC3D.LoaderSelector.getLoader(fileExtName);
 	if(!loader) {
-		if(JSC3D.console)
-			JSC3D.console.logError('Unsupported file format: "' + fileExtName + '".');
+			console.logError('Unsupported file format: "' + fileExtName + '".');
 		return false;
 	}
 
@@ -1067,8 +1079,8 @@ JSC3D.Viewer.prototype.loadScene = function() {
 	};
 
 	loader.onresource = function(resource) {
-		if((resource instanceof JSC3D.Texture) && self.isMipMappingOn && !resource.hasMipmap())
-			resource.generateMipmaps();		
+		if((resource instanceof Texture) && self.isMipMappingOn && !resource.hasMipmap())
+			resource.generateMipmaps();
 		self.update();
 	};
 
@@ -1307,16 +1319,16 @@ JSC3D.Viewer.prototype.fillGradientBackground = function() {
  */
 JSC3D.Viewer.prototype.fillBackgroundWithImage = function() {
 	var w = this.frameWidth;
-	var h = this.frameHeight;	
+	var h = this.frameHeight;
 	if(this.bkgImage.width <= 0 || this.bkgImage.height <= 0)
 		return;
 
 	var isCanvasClean = false;
-	var canvas = JSC3D.Texture.cv;
+	var canvas = Texture.cv;
 	if(!canvas) {
 		try {
 			canvas = document.createElement('canvas');
-			JSC3D.Texture.cv = canvas;
+			Texture.cv = canvas;
 			isCanvasClean = true;
 		}
 		catch(e) {
@@ -1500,7 +1512,7 @@ JSC3D.Viewer.prototype.render = function() {
 		var mesh = renderList[i];
 
 		if(!mesh.isTrivial()) {
-			JSC3D.Math3D.transformVectors(this.transformMatrix, mesh.vertexBuffer, mesh.transformedVertexBuffer);
+			Math3D.transformVectors(this.transformMatrix, mesh.vertexBuffer, mesh.transformedVertexBuffer);
 
 			if(mesh.visible) {
 				switch(mesh.renderMode || this.renderMode) {
@@ -1559,16 +1571,16 @@ JSC3D.Viewer.prototype.sortScene = function(mat) {
 		if(!mesh.isTrivial()) {
 			renderList.push(mesh);
 			var meshCenter = mesh.aabb.center();
-			JSC3D.Math3D.transformVectors(mat, meshCenter, meshCenter);
+			Math3D.transformVectors(mat, meshCenter, meshCenter);
 			var meshMaterial = mesh.material ? mesh.material : this.defaultMaterial;
-			mesh.sortKey = { 
-				depth: meshCenter[2], 
+			mesh.sortKey = {
+				depth: meshCenter[2],
 				isTransparnt: (meshMaterial.transparency > 0) || (mesh.hasTexture() ? mesh.texture.hasTransparency : false)
 			};
 		}
 	}
 
-	renderList.sort( 
+	renderList.sort(
 		function(mesh0, mesh1) {
 			// opaque meshes should always be prior to transparent ones to be rendered
 			if(!mesh0.sortKey.isTransparnt && mesh1.sortKey.isTransparnt)
@@ -1607,13 +1619,13 @@ JSC3D.Viewer.prototype.renderPoint = function(mesh) {
 	var numOfVertices = vbuf.length / 3;
 	var id = mesh.internalId;
 	var color = 0xff000000 | (mesh.material ? mesh.material.diffuseColor : this.defaultMaterial.diffuseColor);
-	
+
 //	if(!nbuf || nbuf.length < numOfVertices) {
 //		mesh.transformedVertexNormalZBuffer = new Array(numOfVertices);
 //		nbuf = mesh.transformedVertexNormalZBuffer;
 //	}
 
-//	JSC3D.Math3D.transformVectorZs(this.rotMatrix, mesh.vertexNormalBuffer, nbuf);
+//	Math3D.transformVectorZs(this.rotMatrix, mesh.vertexNormalBuffer, nbuf);
 
 	for(var i=0, j=0; i<numOfVertices; i++, j+=3) {
 //		var xformedNz = nbuf[i];
@@ -1678,7 +1690,7 @@ JSC3D.Viewer.prototype.renderWireframe = function(mesh) {
 		nbuf = mesh.transformedFaceNormalZBuffer;
 	}
 
-	JSC3D.Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, nbuf);
+	Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, nbuf);
 
 	var i = 0, j = 0;
 	while(i < numOfFaces) {
@@ -1810,7 +1822,7 @@ JSC3D.Viewer.prototype.renderSolidFlat = function(mesh) {
 		nbuf = mesh.transformedFaceNormalZBuffer;
 	}
 
-	JSC3D.Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, nbuf);
+	Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, nbuf);
 
 	var Xs = new Array(3);
 	var Ys = new Array(3);
@@ -1998,8 +2010,8 @@ JSC3D.Viewer.prototype.renderSolidSmooth = function(mesh) {
 		fnbuf = mesh.transformedFaceNormalZBuffer;
 	}
 
-	JSC3D.Math3D.transformVectorZs(this.rotMatrix, mesh.vertexNormalBuffer, vnbuf);
-	JSC3D.Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, fnbuf);
+	Math3D.transformVectorZs(this.rotMatrix, mesh.vertexNormalBuffer, vnbuf);
+	Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, fnbuf);
 
 	var Xs = new Array(3);
 	var Ys = new Array(3);
@@ -2222,7 +2234,7 @@ JSC3D.Viewer.prototype.renderSolidTexture = function(mesh) {
 		nbuf = mesh.transformedFaceNormalZBuffer;
 	}
 
-	JSC3D.Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, nbuf);
+	Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, nbuf);
 
 	var Xs = new Array(3);
 	var Ys = new Array(3);
@@ -2512,7 +2524,7 @@ JSC3D.Viewer.prototype.renderTextureFlat = function(mesh) {
 		nbuf = mesh.transformedFaceNormalZBuffer;
 	}
 
-	JSC3D.Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, nbuf);
+	Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, nbuf);
 
 	var Xs = new Array(3);
 	var Ys = new Array(3);
@@ -2822,8 +2834,8 @@ JSC3D.Viewer.prototype.renderTextureSmooth = function(mesh) {
 		fnbuf = mesh.transformedFaceNormalZBuffer;
 	}
 
-	JSC3D.Math3D.transformVectorZs(this.rotMatrix, mesh.vertexNormalBuffer, vnbuf);
-	JSC3D.Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, fnbuf);
+	Math3D.transformVectorZs(this.rotMatrix, mesh.vertexNormalBuffer, vnbuf);
+	Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, fnbuf);
 
 	var Xs = new Array(3);
 	var Ys = new Array(3);
@@ -2902,7 +2914,7 @@ JSC3D.Viewer.prototype.renderTextureSmooth = function(mesh) {
 				tdata = mipmaps[level];
 				tbound = tdim - 1;
 			}
-			
+
 			do {
 				i2 = ibuf[j];
 				v2 = i2 * 3;
@@ -3170,8 +3182,8 @@ JSC3D.Viewer.prototype.renderSolidSphereMapped = function(mesh) {
 		fnbuf = mesh.transformedFaceNormalZBuffer;
 	}
 
-	JSC3D.Math3D.transformVectors(this.rotMatrix, mesh.vertexNormalBuffer, vnbuf);
-	JSC3D.Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, fnbuf);
+	Math3D.transformVectors(this.rotMatrix, mesh.vertexNormalBuffer, vnbuf);
+	Math3D.transformVectorZs(this.rotMatrix, mesh.faceNormalBuffer, fnbuf);
 
 	var Xs = new Array(3);
 	var Ys = new Array(3);
@@ -3355,7 +3367,7 @@ JSC3D.Viewer.prototype.renderSolidSphereMapped = function(mesh) {
 									if(z > zbuf[pix]) {
 										var color = palette[n > 0 ? (~~n) : 0];
 										var foreColor = sdata[(sv & sbound) * sdim + (sh & sbound)];
-										var backColor = cbuf[pix];										
+										var backColor = cbuf[pix];
 										var rr = (((color & 0xff0000) >> 16) * ((foreColor & 0xff0000) >> 8));
 										var gg = (((color & 0xff00) >> 8) * ((foreColor & 0xff00) >> 8));
 										var bb = ((color & 0xff) * (foreColor & 0xff)) >> 8;
@@ -3516,577 +3528,10 @@ JSC3D.PickInfo = function() {
 	 */
 	this.depth = -Infinity;
 	/**
-	 * {JSC3D.Mesh} Mesh picked on current position or null if none.
+	 * {Mesh} Mesh picked on current position or null if none.
 	 */
 	this.mesh = null;
 };
-
-
-/**
-	@class Scene
-
-	This class implements scene that contains a group of meshes that forms the world. 
- */
-JSC3D.Scene = function(name) {
-	this.name = name || '';
-	this.srcUrl = '';
-	this.aabb = null;
-	this.children = [];
-	this.maxChildId = 1;
-};
-
-/**
-	Initialize the scene.
- */
-JSC3D.Scene.prototype.init = function() {
-	if(this.isEmpty())
-		return;
-
-	for(var i=0; i<this.children.length; i++)
-		this.children[i].init();
-
-	if(!this.aabb) {
-		this.aabb = new JSC3D.AABB;
-		this.calcAABB();
-	}
-};
-
-/**
-	See if the scene is empty.
-	@returns {Boolean} true if it does not contain meshes; false if it has any.
- */
-JSC3D.Scene.prototype.isEmpty = function() {
-	return (this.children.length == 0);
-};
-
-/**
-	Add a mesh to the scene.
-	@param {JSC3D.Mesh} mesh the mesh to be added.
- */
-JSC3D.Scene.prototype.addChild = function(mesh) {
-	mesh.internalId = this.maxChildId++;
-	this.children.push(mesh);
-};
-
-/**
-	Remove a mesh from the scene.
-	@param {JSC3D.Mesh} mesh the mesh to be removed.
- */
-JSC3D.Scene.prototype.removeChild = function(mesh) {
-	var foundAt = this.children.indexOf(mesh);
-	if(foundAt >= 0)
-		this.children.splice(foundAt, 1);
-};
-
-/**
-	Get all meshes in the scene.
-	@returns {Array} meshes as an array.
- */
-JSC3D.Scene.prototype.getChildren = function() {
-	return this.children.slice(0);
-};
-
-/**
-	Traverse meshes in the scene, calling a given function on each of them.
-	@param {Function} operator a function that will be called on each mesh.
- */
-JSC3D.Scene.prototype.forEachChild = function(operator) {
-	if((typeof operator) != 'function')
-		return;
-
-	for(var i=0; i<this.children.length; i++) {
-		if(operator.call(null, this.children[i]))
-			break;
-	}
-};
-
-/**
-	Calculate AABB of the scene.
-	@private
- */
-JSC3D.Scene.prototype.calcAABB = function() {
-	this.aabb.minX = this.aabb.minY = this.aabb.minZ = Infinity;
-	this.aabb.maxX = this.aabb.maxY = this.aabb.maxZ = -Infinity;
-	for(var i=0; i<this.children.length; i++) {
-		var child = this.children[i];
-		if(!child.isTrivial()) {
-			var minX = child.aabb.minX;
-			var minY = child.aabb.minY;
-			var minZ = child.aabb.minZ;
-			var maxX = child.aabb.maxX;
-			var maxY = child.aabb.maxY;
-			var maxZ = child.aabb.maxZ;
-			if(this.aabb.minX > minX)
-				this.aabb.minX = minX;
-			if(this.aabb.minY > minY)
-				this.aabb.minY = minY;
-			if(this.aabb.minZ > minZ)
-				this.aabb.minZ = minZ;
-			if(this.aabb.maxX < maxX)
-				this.aabb.maxX = maxX;
-			if(this.aabb.maxY < maxY)
-				this.aabb.maxY = maxY;
-			if(this.aabb.maxZ < maxZ)
-				this.aabb.maxZ = maxZ;
-		}
-	}
-};
-
-/**
- * {String} Name of the scene.
- */
-JSC3D.Scene.prototype.name = '';
-/**
- * {String} Source URL of the scene, empty if none. Read only.
- */
-JSC3D.Scene.prototype.srcUrl = '';
-/**
- * {JSC3D.AABB} The Axis-aligned bounding box of the whole scene. Read only.
- */
-JSC3D.Scene.prototype.aabb = null;
-JSC3D.Scene.prototype.children = null;
-JSC3D.Scene.prototype.maxChildId = 1;
-
-
-/**
-	@class Mesh
-
-	This class implements mesh that is used as an expression of 3D object and the basic primitive for rendering. <br />
-	A mesh basically consists of a sequence of faces, and optioanlly a material, a texture mapping and other attributes and metadata.<br />
-	A face consists of 3 or more coplanary vertex that should be descript in counter-clockwise order.<br />
-	A texture mapping includes a valid texture object with a sequence of texture coordinats specified per vertex.<br />
- */
-JSC3D.Mesh = function(name, visible, material, texture, creaseAngle, isDoubleSided, isEnvironmentCast, coordBuffer, indexBuffer, texCoordBuffer, texCoordIndexBuffer) {
-	this.name = name || '';
-	this.metadata = '';
-	this.visible = (visible != undefined) ? visible : true;
-	this.renderMode = null;
-	this.aabb = null;
-	this.vertexBuffer = coordBuffer || null;
-	this.indexBuffer = indexBuffer || null;
-	this.vertexNormalBuffer = null;
-	this.vertexNormalIndexBuffer = null;
-	this.faceNormalBuffer = null;
-	this.material = material || null;
-	this.texture = texture || null;
-	this.faceCount = 0;
-	this.creaseAngle = (creaseAngle >= 0) ? creaseAngle : -180;
-	this.isDoubleSided = isDoubleSided || false;
-	this.isEnvironmentCast = isEnvironmentCast || false;
-	this.internalId = 0;
-	this.texCoordBuffer = texCoordBuffer || null;
-	this.texCoordIndexBuffer = texCoordIndexBuffer || null;
-	this.transformedVertexBuffer = null;
-	this.transformedVertexNormalZBuffer = null;
-	this.transformedFaceNormalZBuffer = null;
-	this.transformedVertexNormalBuffer = null;
-};
-
-/**
-	Initialize the mesh.
- */
-JSC3D.Mesh.prototype.init = function() {
-	if(this.isTrivial()) {
-		return;
-	}
-
-	if(this.faceCount == 0) {
-		this.calcFaceCount();
-		if(this.faceCount == 0)
-			return;
-	}
-
-	if(!this.aabb) {
-		this.aabb = new JSC3D.AABB;
-		this.calcAABB();
-	}
-
-	if(!this.faceNormalBuffer) {
-		this.faceNormalBuffer = new Array(this.faceCount * 3);
-		this.calcFaceNormals();
-	}
-
-	if(!this.vertexNormalBuffer) {
-		if(this.creaseAngle >= 0) {
-			this.calcCreasedVertexNormals();
-		}
-		else {
-			this.vertexNormalBuffer = new Array(this.vertexBuffer.length);
-			this.calcVertexNormals();
-		}
-	}
-
-	this.normalizeFaceNormals();
-
-	this.transformedVertexBuffer = new Array(this.vertexBuffer.length);
-};
-
-/**
-	See if the mesh is a trivial mesh. A trivial mesh should be omited in any calculation or rendering.
-	@returns {Boolean} true if it is trivial; false if not.
- */
-JSC3D.Mesh.prototype.isTrivial = function() {
-	return ( !this.vertexBuffer || this.vertexBuffer.length < 3 || 
-			 !this.indexBuffer || this.indexBuffer.length < 3 );
-};
-
-/**
-	Set material for the mesh.
-	@param {JSC3D.Material} material the material object.
- */
-JSC3D.Mesh.prototype.setMaterial = function(material) {
-	this.material = material;
-};
-
-/**
-	Set texture for the mesh.
-	@param {JSC3D.Texture} texture the texture object.
- */
-JSC3D.Mesh.prototype.setTexture = function(texture) {
-	this.texture = texture;
-};
-
-/**
-	See if the mesh has valid texture mapping.
-	@returns {Boolean} true if it has valid texture mapping; false if not.
- */
-JSC3D.Mesh.prototype.hasTexture = function() {
-	return ( (this.texture != null) && this.texture.hasData() &&
-			 (this.texCoordBuffer != null) && (this.texCoordBuffer.length >= 2) && 
-			 ((this.texCoordIndexBuffer == null) || ((this.texCoordIndexBuffer.length >= 3) && (this.texCoordIndexBuffer.length >= this.indexBuffer.length))) );
-};
-
-/**
-	Set render mode of the mesh.<br />
-	Available render modes are:<br />
-	'<b>point</b>':         render meshes as point clouds;<br />
-	'<b>wireframe</b>':     render meshes as wireframe;<br />
-	'<b>flat</b>':          render meshes as solid objects using flat shading;<br />
-	'<b>smooth</b>':        render meshes as solid objects using smooth shading;<br />
-	'<b>texture</b>':       render meshes as solid textured objects, no lighting will be apllied;<br />
-	'<b>textureflat</b>':   render meshes as solid textured objects, lighting will be calculated per face;<br />
-	'<b>texturesmooth</b>': render meshes as solid textured objects, lighting will be calculated per vertex and interpolated.<br />
-	@param {String} mode new render mode.
- */
-JSC3D.Mesh.prototype.setRenderMode = function(mode) {
-	this.renderMode = mode;
-};
-
-/**
-	Calculate count of faces.
-	@private
- */
-JSC3D.Mesh.prototype.calcFaceCount = function() {
-	this.faceCount = 0;
-
-	var ibuf = this.indexBuffer;
-
-	// add the last -1 if it is omitted
-	if(ibuf[ibuf.length - 1] != -1)
-		ibuf.push(-1);
-
-	for(var i=0; i<ibuf.length; i++) {
-		if(ibuf[i] == -1)
-			this.faceCount++;
-	}
-};
-
-/**
-	Calculate AABB of the mesh.
-	@private
- */
-JSC3D.Mesh.prototype.calcAABB = function() {
-	var minX = minY = minZ = Infinity;
-	var maxX = maxY = maxZ = -Infinity;
-
-	var vbuf = this.vertexBuffer;
-	for(var i=0; i<vbuf.length; i+=3) {
-		var x = vbuf[i    ];
-		var y = vbuf[i + 1];
-		var z = vbuf[i + 2];
-
-		if(x < minX)
-			minX = x;
-		if(x > maxX)
-			maxX = x;
-		if(y < minY)
-			minY = y;
-		if(y > maxY)
-			maxY = y;
-		if(z < minZ)
-			minZ = z;
-		if(z > maxZ)
-			maxZ = z;
-	}
-
-	this.aabb.minX = minX;
-	this.aabb.minY = minY;
-	this.aabb.minZ = minZ;
-	this.aabb.maxX = maxX;
-	this.aabb.maxY = maxY;
-	this.aabb.maxZ = maxZ;
-};
-
-/**
-	Calculate per face normals. The reault remain un-normalized for later vertex normal calculations.
-	@private
- */
-JSC3D.Mesh.prototype.calcFaceNormals = function() {
-	var vbuf = this.vertexBuffer;
-	var ibuf = this.indexBuffer;
-	var nbuf = this.faceNormalBuffer;
-	var i = 0, j = 0;
-	while(i < ibuf.length) {
-		var index = ibuf[i++] * 3;
-		var x0 = vbuf[index    ];
-		var y0 = vbuf[index + 1];
-		var z0 = vbuf[index + 2];
-
-		index = ibuf[i++] * 3;
-		var x1 = vbuf[index    ];
-		var y1 = vbuf[index + 1];
-		var z1 = vbuf[index + 2];
-
-		index = ibuf[i++] * 3;
-		var x2 = vbuf[index    ];
-		var y2 = vbuf[index + 1];
-		var z2 = vbuf[index + 2];
-
-		var dx1 = x1 - x0;
-		var dy1 = y1 - y0;
-		var dz1 = z1 - z0;
-		var dx2 = x2 - x0;
-		var dy2 = y2 - y0;
-		var dz2 = z2 - z0;
-
-		var nx = dy1 * dz2 - dz1 * dy2;
-		var ny = dz1 * dx2 - dx1 * dz2;
-		var nz = dx1 * dy2 - dy1 * dx2;
-
-		nbuf[j++] = nx;
-		nbuf[j++] = ny;
-		nbuf[j++] = nz;
-
-		do {
-		} while (ibuf[i++] != -1);
-	}
-};
-
-/**
-	Normalize face normals.
-	@private
- */
-JSC3D.Mesh.prototype.normalizeFaceNormals = function() {
-	JSC3D.Math3D.normalizeVectors(this.faceNormalBuffer, this.faceNormalBuffer);
-};
-
-/**
-	Calculate per vertex normals.
-	@private
- */
-JSC3D.Mesh.prototype.calcVertexNormals = function() {
-	if(!this.faceNormalBuffer) {
-		this.faceNormalBuffer = new Array(this.faceCount * 3);
-		this.calcFaceNormals();
-	}
-
-	var vbuf = this.vertexBuffer;
-	var ibuf = this.indexBuffer;
-	var fnbuf = this.faceNormalBuffer;
-	var vnbuf = this.vertexNormalBuffer;
-	for(var i=0; i<vnbuf.length; i++) {
-		vnbuf[i] = 0;
-	}
-
-	// in this case, the vertex normal index buffer should be set to null 
-	// since the vertex index buffer will be used to reference vertex normals
-	this.vertexNormalIndexBuffer = null;
-
-	var numOfVertices = vbuf.length / 3;
-
-	/*
-		Generate vertex normals.
-		Normals of faces around each vertex will be summed to calculate that vertex normal.
-	*/
-	var i = 0, j = 0, k = 0;
-	while(i < ibuf.length) {
-		k = ibuf[i++];
-		if(k == -1) {
-			j += 3;
-		}
-		else {
-			var index = k * 3;
-			// add face normal to vertex normal
-			vnbuf[index    ] += fnbuf[j    ];
-			vnbuf[index + 1] += fnbuf[j + 1];
-			vnbuf[index + 2] += fnbuf[j + 2];
-		}
-	}
-
-	// normalize vertex normals
-	JSC3D.Math3D.normalizeVectors(vnbuf, vnbuf);
-};
-
-/**
-	Calculate per vertex normals. The given crease-angle will be taken into account.
-	@private
- */
-JSC3D.Mesh.prototype.calcCreasedVertexNormals = function() {
-	if(!this.faceNormalBuffer) {
-		this.faceNormalBuffer = new Array(this.faceCount * 3);
-		this.calcFaceNormals();
-	}
-
-	var ibuf = this.indexBuffer;
-	var numOfVerts = this.vertexBuffer.length / 3;
-
-	/*
-		Go through vertices. For each one, record the indices of faces who touch this vertex.
-		The new length of the vertex normal buffer will also be calculated.
-	*/
-	var vertTouchedFaces = new Array(numOfVerts);
-	var expectedVertNormalBufferLength = 0;
-	for(var i=0, findex=0, vindex=0; i<ibuf.length; i++) {
-		vindex = ibuf[i];
-		if(vindex >= 0) {
-			expectedVertNormalBufferLength += 3;
-			var faces = vertTouchedFaces[vindex];
-			if(!faces)
-				vertTouchedFaces[vindex] = [findex];
-			else
-				faces.push(findex);
-		}
-		else {
-			findex++;
-		}
-	}
-
-	var fnbuf = this.faceNormalBuffer;
-	// generate normalized face normals which will be used for calculating dot product
-	var nfnbuf = new Array(fnbuf.length);
-	JSC3D.Math3D.normalizeVectors(fnbuf, nfnbuf);
-
-	// realloc and initialize the vertex normal buffer
-	if(!this.vertexNormalBuffer || this.vertexNormalBuffer.length < expectedVertNormalBufferLength)
-		this.vertexNormalBuffer = new Array(expectedVertNormalBufferLength);
-	var vnbuf = this.vertexNormalBuffer;
-	for(var i=0; i<vnbuf.length; i++) {
-		vnbuf[i] = 0;
-	}
-
-	// the vertex normal index buffer will be re-calculated
-	this.vertexNormalIndexBuffer = [];
-	var nibuf = this.vertexNormalIndexBuffer;
-
-	/* 
-		Generate vertex normals and normal indices. 
-		In this case, There will be a separate normal for each vertex of each face.
-	*/
-	var threshold = Math.cos(this.creaseAngle * Math.PI / 180);
-	for(var i=0, vindex=0, nindex=0, findex0=0; i<ibuf.length; i++) {
-		vindex = ibuf[i];
-		if(vindex >= 0) {
-			var n = nindex * 3; 
-			var f0 = findex0 * 3;
-			// add face normal to vertex normal
-			vnbuf[n    ] += fnbuf[f0    ];
-			vnbuf[n + 1] += fnbuf[f0 + 1];
-			vnbuf[n + 2] += fnbuf[f0 + 2];
-			var fnx0 = nfnbuf[f0    ];
-			var fny0 = nfnbuf[f0 + 1];
-			var fnz0 = nfnbuf[f0 + 2];
-			// go through faces around this vertex, accumulating normals
-			var faces = vertTouchedFaces[vindex];
-			for(var j=0; j<faces.length; j++) {
-				var findex1 = faces[j];
-				if(findex0 != findex1) {
-					var f1 = findex1 * 3;
-					var fnx1 = nfnbuf[f1    ];
-					var fny1 = nfnbuf[f1 + 1];
-					var fnz1 = nfnbuf[f1 + 2];
-					// if the angle between normals of the adjacent faces is less than the crease-angle, the 
-					// normal of the other face will be accumulated to the vertex normal of the current face
-					if(fnx0 * fnx1 + fny0 * fny1 + fnz0 * fnz1 > threshold) {
-						vnbuf[n    ] += fnbuf[f1    ];
-						vnbuf[n + 1] += fnbuf[f1 + 1];
-						vnbuf[n + 2] += fnbuf[f1 + 2];
-					}
-				}
-			}
-			nibuf.push(nindex++);
-		}
-		else {
-			findex0++;
-			nibuf.push(-1);
-		}
-	}
-
-	// normalize the results
-	JSC3D.Math3D.normalizeVectors(vnbuf, vnbuf);
-};
-
-JSC3D.Mesh.prototype.checkValid = function() {
-	//TODO: not implemented yet
-};
-
-/**
- * {String} Name of the mesh.
- */
-JSC3D.Mesh.prototype.name = '';
-JSC3D.Mesh.prototype.metadata = '';
-/**
- * {Boolean} Visibility of the mesh. If it is set to false, the mesh will be ignored in rendering.
- */
-JSC3D.Mesh.prototype.visible = false;
-JSC3D.Mesh.prototype.renderMode = 'flat';
-/**
- * {JSC3D.AABB} The Axis-aligned bounding box of the mesh. Read only.
- */
-JSC3D.Mesh.prototype.aabb = null;
-/**
- * {Array} The plain sequence of vertex coordinates of the mesh.
- */
-JSC3D.Mesh.prototype.vertexBuffer = null;
-/**
- * {Array} The sequence of vertex indices that describe faces. Each face contains at least 3 vertex 
- * indices that are ended by a -1. Faces are not limited to triangles.
- */
-JSC3D.Mesh.prototype.indexBuffer = null;
-JSC3D.Mesh.prototype.vertexNormalBuffer = null;
-JSC3D.Mesh.prototype.vertexNormalIndexBuffer = null;
-JSC3D.Mesh.prototype.faceNormalBuffer = null;
-/**
- * {Array} The plain sequence of texture coordinates of the mesh, or null if none.
- */
-JSC3D.Mesh.prototype.texCoordBuffer = null;
-/**
- * {Array} The sequence of tex coord indices. If it is null, the indexBuffer will be used.
- */
-JSC3D.Mesh.prototype.texCoordIndexBuffer = null;
-JSC3D.Mesh.prototype.material = null;
-JSC3D.Mesh.prototype.texture = null;
-/**
- * {Number} Number of faces of the mesh. Read only.
- */
-JSC3D.Mesh.prototype.faceCount = 0;
-/**
- * {Number} An angle to preserve sharp edges in smooth rendering. If the angle between the normals of two adjacent faces exceeds this value, the edge will be recognized as an sharp edge thus it will not be smoothed.
- */
-JSC3D.Mesh.prototype.creaseAngle = -180;
-/**
- * {Boolean} If set to true, both sides of the faces will be rendered.
- */
-JSC3D.Mesh.prototype.isDoubleSided = false;
-/**
- * {Boolean} If set to true, the mesh accepts environment mapping.
- */
-JSC3D.Mesh.prototype.isEnvironmentCast = false;
-JSC3D.Mesh.prototype.internalId = 0;
-JSC3D.Mesh.prototype.transformedVertexBuffer = null;
-JSC3D.Mesh.prototype.transformedVertexNormalZBuffer = null;
-JSC3D.Mesh.prototype.transformedFaceNormalZBuffer = null;
-JSC3D.Mesh.prototype.transformedVertexNormalBuffer = null;
-
 
 /**
 	@class Material
@@ -4185,288 +3630,6 @@ JSC3D.Material.prototype.diffuseColor = 0x7f7f7f;
 JSC3D.Material.prototype.transparency = 0;
 JSC3D.Material.prototype.simulateSpecular = false;
 JSC3D.Material.prototype.palette = null;
-
-
-/**
-	@class Texture
-
-	This class implements texture which describes the surface details for a mesh.
- */
-JSC3D.Texture = function(name, onready) {
-	this.name = name || '';
-	this.width = 0;
-	this.height = 0;
-	this.data = null;
-	this.mipmaps = null;
-	this.mipentries = null;
-	this.hasTransparency = false;
-	this.srcUrl = '';
-	this.onready = (onready && typeof(onready) == 'function') ? onready : null;
-};
-
-/**
-	Load an image and extract texture data from it.
-	@param {String} imageUrl where to load the image.
-	@param {Boolean} useMipmap set true to generate mip-maps; false(default) not to generate mip-maps.
- */
-JSC3D.Texture.prototype.createFromUrl = function(imageUrl, useMipmap) {
-	var self = this;
-	var img = new Image;
-
-	img.onload = function() {
-		self.data = null;
-		self.mipmaps = null;
-		self.mipentries = null;
-		self.width = 0;
-		self.height = 0;
-		self.hasTransparency = false;
-		self.srcUrl = '';
-		self.createFromImage(this, useMipmap);
-		if(JSC3D.console)
-			JSC3D.console.logInfo('Finished loading texture image file "' + this.src + '".');
-	};
-
-	img.onerror = function() {
-		self.data = null;
-		self.mipmaps = null;
-		self.mipentries = null;
-		self.width = 0;
-		self.height = 0;
-		self.hasTransparency = false;
-		self.srcUrl = '';
-		if(JSC3D.console)
-			JSC3D.console.logWarning('Failed to load texture image file "' + this.src + '". This texture will be discarded.');
-	};
-
-	img.crossOrigin = 'anonymous'; // explicitly enable cross-domain image
-	img.src = encodeURI(imageUrl);
-};
-
-/**
-	Extract texture data from an exsisting image.
-	@param {Image} image image as datasource of the texture.
-	@param {Boolean} useMipmap set true to generate mip-maps; false(default) not to generate mip-maps.
- */
-JSC3D.Texture.prototype.createFromImage = function(image, useMipmap) {
-	if(image.width <=0 || image.height <=0)
-		return;
-
-	var isCanvasClean = false;
-	var canvas = JSC3D.Texture.cv;
-	if(!canvas) {
-		try {
-			canvas = document.createElement('canvas');
-			JSC3D.Texture.cv = canvas;
-			isCanvasClean = true;
-		}
-		catch(e) {
-			return;
-		}
-	}
-
-	// look for appropriate texture dimensions
-	var dim = image.width > image.height ? image.width : image.height;
-	if(dim <= 16)
-		dim = 16;
-	else if(dim <= 32)
-		dim = 32;
-	else if(dim <= 64)
-		dim = 64;
-	else if(dim <= 128)
-		dim = 128;
-	else if(dim <= 256)
-		dim = 256;
-	else if(dim <= 512)
-		dim = 512;
-	else
-		dim = 1024;
-
-	if(canvas.width != dim || canvas.height != dim) {
-		canvas.width = canvas.height = dim;
-		isCanvasClean = true;
-	}
-
-	var data;
-	try {
-		var ctx = canvas.getContext('2d');
-		if(!isCanvasClean)
-			ctx.clearRect(0, 0, dim, dim);
-		ctx.drawImage(image, 0, 0, dim, dim);
-		var imgData = ctx.getImageData(0, 0, dim, dim);
-		data = imgData.data;
-	}
-	catch(e) {
-		return;
-	}
-
-	var size = data.length / 4;
-	this.data = new Array(size);
-	var alpha;
-	for(var i=0, j=0; i<size; i++, j+=4) {
-		alpha = data[j + 3];
-		this.data[i] = alpha << 24 | data[j] << 16 | data[j+1] << 8 | data[j+2];
-		if(alpha < 255)
-			this.hasTransparency = true;
-	}
-
-	this.width = dim;
-	this.height = dim;
-
-	this.mipmaps = null;
-	if(useMipmap)
-		this.generateMipmaps();
-
-	this.srcUrl = image.src;
-
-	if(this.onready != null && (typeof this.onready) == 'function')
-		this.onready();
-};
-
-/**
-	See if this texture contains texel data.
-	@returns {Boolean} true if it has texel data; false if not.
- */
-JSC3D.Texture.prototype.hasData = function() {
-	return (this.data != null);
-};
-
-/**
-	Generate mip-map pyramid for the texture.
- */
-JSC3D.Texture.prototype.generateMipmaps = function() {
-	if(this.width <= 1 || this.data == null || this.mipmaps != null)
-		return;
-
-	this.mipmaps = [this.data];
-	this.mipentries = [1];
-	
-	var numOfMipLevels = 1 + ~~(0.1 + Math.log(this.width) * Math.LOG2E);
-	var dim = this.width >> 1;
-	for(var level=1; level<numOfMipLevels; level++) {
-		var map = new Array(dim * dim);
-		var uppermap = this.mipmaps[level - 1];
-		var upperdim = dim << 1;
-
-		var src = 0, dest = 0;
-		for(var i=0; i<dim; i++) {
-			for(var j=0; j<dim; j++) {
-				var texel0 = uppermap[src];
-				var texel1 = uppermap[src + 1];
-				var texel2 = uppermap[src + upperdim];
-				var texel3 = uppermap[src + upperdim + 1];
-				var a = ( ((texel0 & 0xff000000) >>> 2) + ((texel1 & 0xff000000) >>> 2) + ((texel2 & 0xff000000) >>> 2) + ((texel3 & 0xff000000) >>> 2) ) & 0xff000000;
-				var r = ( ((texel0 & 0xff0000) + (texel1 & 0xff0000) + (texel2 & 0xff0000) + (texel3 & 0xff0000)) >> 2 ) & 0xff0000;
-				var g = ( ((texel0 & 0xff00) + (texel1 & 0xff00) + (texel2 & 0xff00) + (texel3 & 0xff00)) >> 2 ) & 0xff00;
-				var b = ( ((texel0 & 0xff) + (texel1 & 0xff) + (texel2 & 0xff) + (texel3 & 0xff)) >> 2 ) & 0xff;
-				map[dest] = a + r + g + b;
-				src += 2;
-				dest++;
-			}
-			src += upperdim;
-		}
-
-		this.mipmaps.push(map);
-		this.mipentries.push(Math.pow(4, level));
-		dim = dim >> 1;
-	}
-};
-
-/**
-	See if this texture has mip-maps.
-	@returns {Boolean} true if it has mip-maps; false if not.
- */
-JSC3D.Texture.prototype.hasMipmap = function() {
-	return (this.mipmaps != null);
-};
-
-/**
- * {String} Name of the texture.
- */
-JSC3D.Texture.prototype.name = '';
-JSC3D.Texture.prototype.data = null;
-JSC3D.Texture.prototype.mipmaps = null;
-JSC3D.Texture.prototype.mipentries = null;
-/**
- * {Number} Width of the texture in pixels. Read only.
- */
-JSC3D.Texture.prototype.width = 0;
-/**
- * {Number} Height of the texture in pixels. Read only.
- */
-JSC3D.Texture.prototype.height = 0;
-/**
- * {Boolean} Whether the texture contains tranparent pixels. Read only.
- */
-JSC3D.Texture.prototype.hasTransparency = false;
-/**
- * {String} URL of the image source of the texture. Read only.
- */
-JSC3D.Texture.prototype.srcUrl = '';
-/**
- * {Function} A callback function that will be invoked immediately as the texture is ready.
- */
-JSC3D.Texture.prototype.onready = null;
-JSC3D.Texture.cv = null;
-
-
-/**
-	@class AABB
-
-	This class implements the Axis-Aligned Bounding Box to measure spatial enclosure.
- */
-JSC3D.AABB = function() {
-	/**
-	 * {Number} X coordinate of the minimum edge of the box.
-	 */
-	this.minX = 0;
-	/**
-	 * {Number} Y coordinate of the minimum edge of the box.
-	 */
-	this.minY = 0;
-	/**
-	 * {Number} Z coordinate of the minimum edge of the box.
-	 */
-	this.minZ = 0;
-	/**
-	 * {Number} X coordinate of the maximum edge of the box.
-	 */
-	this.maxX = 0;
-	/**
-	 * {Number} Y coordinate of the maximum edge of the box.
-	 */
-	this.maxY = 0;
-	/**
-	 * {Number} Z coordinate of the maximum edge of the box.
-	 */
-	this.maxZ = 0;
-};
-
-/**
-	Get center coordinates of the AABB.
-	@param {Array} c an array to receive the result.
-	@returns {Array} center coordinates as an array.
- */
-JSC3D.AABB.prototype.center = function(c) {
-	if(c) {
-		c[0] = 0.5 * (this.minX + this.maxX);
-		c[1] = 0.5 * (this.minY + this.maxY);
-		c[2] = 0.5 * (this.minZ + this.maxZ);
-	}
-	else
-		c = [0.5 * (this.minX + this.maxX), 0.5 * (this.minY + this.maxY), 0.5 * (this.minZ + this.maxZ)];
-	return c;
-};
-
-/**
-	Get the length of the diagonal of the AABB.
-	@returns {Number} length of the diagonal.
- */
-JSC3D.AABB.prototype.lengthOfDiagonal = function() {
-	var xx = this.maxX - this.minX;
-	var yy = this.maxY - this.minY;
-	var zz = this.maxZ - this.minZ;
-	return Math.sqrt(xx * xx + yy * yy + zz * zz);
-};
 
 
 /**
@@ -4608,86 +3771,17 @@ JSC3D.Matrix3x4.prototype.multiply = function(mult) {
 	this.m20 = m20; this.m21 = m21; this.m22 = m22; this.m23 = m23;
 };
 
-
-/**
-	@class Math3D
-
-	This class provides some utility methods for 3D mathematics.
- */
-JSC3D.Math3D = {
-
-	/**
-		Transform vectors using the given matrix.
-		@param {JSC3D.Matrix3x4} mat the transformation matrix.
-		@param {Array} vecs a batch of vectors to be transform.
-		@param {Array} xfvecs where to output the transformed vetors.
-	 */
-	transformVectors: function(mat, vecs, xfvecs) {
-		for(var i=0; i<vecs.length; i+=3) {
-			var x = vecs[i    ];
-			var y = vecs[i + 1];
-			var z = vecs[i + 2];
-			xfvecs[i    ] = mat.m00 * x + mat.m01 * y + mat.m02 * z + mat.m03;
-			xfvecs[i + 1] = mat.m10 * x + mat.m11 * y + mat.m12 * z + mat.m13;
-			xfvecs[i + 2] = mat.m20 * x + mat.m21 * y + mat.m22 * z + mat.m23;
-		}
-	},
-
-	/**
-		Transform vectors using the given matrix. Only z components (transformed) will be written out.
-		@param {JSC3D.Matrix3x4} mat the transformation matrix.
-		@param {Array} vecs a batch of vectors to be transform.
-		@param {Array} xfveczs where to output the transformed z components of the input vectors.
-	 */
-	transformVectorZs: function(mat, vecs, xfveczs) {
-		var num = vecs.length / 3;
-		var i = 0, j = 0
-		while(i < num) {
-			xfveczs[i] = mat.m20 * vecs[j] + mat.m21 * vecs[j + 1] + mat.m22 * vecs[j + 2] + mat.m23;
-			i++;
-			j += 3;
-		}
-	}, 
-
-	/**
-		Normalize vectors.
-		@param {Array} src a batch of vectors to be normalized.
-		@param {Array} dest where to output the normalized results.
-	 */
-	normalizeVectors: function(src, dest) {
-		var num = src.length;
-		for(var i=0; i<num; i+=3) {
-			var x = src[i    ];
-			var y = src[i + 1];
-			var z = src[i + 2];
-			var len = Math.sqrt(x * x + y * y + z * z);
-			if(len > 0) {
-				len = 1 / len;
-				x *= len;
-				y *= len;
-				z *= len;
-			}
-
-			dest[i    ] = x;
-			dest[i + 1] = y;
-			dest[i + 2] = z;
-		}
-	}
-
-};
-
-
 JSC3D.Util = {
 
 	/**
-	 * Convert content of a responseBody, as the result of an XHR request, to a (binary) string. 
+	 * Convert content of a responseBody, as the result of an XHR request, to a (binary) string.
 	 * This method is special for IE.
 	 */
 	ieXHRResponseBodyToString: function(responseBody) {
-		// I had expected this could be done by a single line: 
-		//     String.fromCharCode.apply(null, (new VBArray(responseBody)).toArray()); 
-		// But it tends to result in an 'out of stack space' exception on larger streams. 
-		// So we just cut the array to smaller pieces (64k for each) and convert them to 
+		// I had expected this could be done by a single line:
+		//     String.fromCharCode.apply(null, (new VBArray(responseBody)).toArray());
+		// But it tends to result in an 'out of stack space' exception on larger streams.
+		// So we just cut the array to smaller pieces (64k for each) and convert them to
 		// strings which can then be combined into one.
 		var arr = (new VBArray(responseBody)).toArray();
 		var str = '';
@@ -4697,43 +3791,6 @@ JSC3D.Util = {
 	}
 
 };
-
-
-JSC3D.PlatformInfo = (function() {
-	var info = {
-		browser:			'other', 
-		version:			'n/a', 
-		isTouchDevice:		(document.createTouch != undefined), 		// detect if it is running on touch device
-		supportTypedArrays:	(window.Uint32Array != undefined),			// see if Typed Arrays are supported 
-		supportWebGL:		(window.WebGLRenderingContext != undefined)	// see if WebGL context is supported
-	};
-
-	var agents = [
-		['firefox', /Firefox[\/\s](\d+(?:\.\d+)*)/], 
-		['chrome',  /Chrome[\/\s](\d+(?:\.\d+)*)/ ], 
-		['opera',   /Opera[\/\s](\d+(?:\.\d+)*)/], 
-		['safari',  /Safari[\/\s](\d+(?:\.\d+)*)/], 
-		['webkit',  /AppleWebKit[\/\s](\d+(?:\.\d+)*)/], 
-		['ie',      /MSIE[\/\s](\d+(?:\.\d+)*)/], 
-		/*
-		 * For IE11 and above, as the old keyword 'MSIE' no longer exists there.
-		 * By Laurent Piroelle <laurent.piroelle@fabzat.com>.
-		 */
-		['ie',      /Trident\/\d+\.\d+;\s.*rv:(\d+(?:\.\d+)*)/]
-	];
-
-	var matches;
-	for(var i=0; i<agents.length; i++) {
-		if((matches = agents[i][1].exec(window.navigator.userAgent))) {
-			info.browser = agents[i][0];
-			info.version = matches[1];
-			break;
-		}
-	}
-
-	return info;
-}) ();
-
 
 /**
 	@class BinaryStream
@@ -4930,10 +3987,10 @@ JSC3D.BinaryStream.prototype.decodeFloat = function(bytes, significandBits) {
 	var eMax = (1 << eLen) - 1;
 	var eBias = eMax >> 1;
 
-	var i = bytes - 1; 
-	var d = -1; 
-	var s = this.data[this.offset + i].charCodeAt(0) & 0xff; 
-	i += d; 
+	var i = bytes - 1;
+	var d = -1;
+	var s = this.data[this.offset + i].charCodeAt(0) & 0xff;
+	i += d;
 	var bits = -7;
 	var e = s & ((1 << (-bits)) - 1);
 	s >>= -bits;
@@ -5002,7 +4059,7 @@ JSC3D.LoaderSelector = {
 			loaderInst = new loaderCtor();
 		}
 		catch(e) {
-			loaderInst = null; 
+			loaderInst = null;
 		}
 
 		return loaderInst;
@@ -5015,7 +4072,7 @@ JSC3D.LoaderSelector = {
 /**
 	@class ObjLoader
 
-	This class implements a scene loader from a Wavefront obj file. 
+	This class implements a scene loader from a Wavefront obj file.
  */
 JSC3D.ObjLoader = function(onload, onerror, onprogress, onresource) {
 	this.onload = (onload && typeof(onload) == 'function') ? onload : null;
@@ -5080,9 +4137,8 @@ JSC3D.ObjLoader.prototype.loadObjFile = function(urlPath, fileName, queryPart) {
 				if(self.onload) {
 					if(self.onprogress)
 						self.onprogress('Loading obj file ...', 1);
-					if(JSC3D.console)
-						JSC3D.console.logInfo('Finished loading obj file "' + urlName + '".');
-					var scene = new JSC3D.Scene;
+						console.logInfo('Finished loading obj file "' + urlName + '".');
+					var scene = new Scene;
 					scene.srcUrl = urlName;
 					var mtllibs = self.parseObj(scene, this.responseText);
 					if(mtllibs.length > 0) {
@@ -5097,8 +4153,7 @@ JSC3D.ObjLoader.prototype.loadObjFile = function(urlPath, fileName, queryPart) {
 			else {
 				self.requests.splice(self.requests.indexOf(this), 1);
 				self.requestCount--;
-				if(JSC3D.console)
-					JSC3D.console.logError('Failed to load obj file "' + urlName + '".');
+					console.logError('Failed to load obj file "' + urlName + '".');
 				if(self.onerror)
 					self.onerror('Failed to load obj file "' + urlName + '".');
 			}
@@ -5132,8 +4187,7 @@ JSC3D.ObjLoader.prototype.loadMtlFile = function(scene, urlPath, fileName) {
 			if(this.status == 200 || this.status == 0) {
 				if(self.onprogress)
 					self.onprogress('Loading mtl file ...', 1);
-				if(JSC3D.console)
-					JSC3D.console.logInfo('Finished loading mtl file "' + urlName + '".');
+					console.logInfo('Finished loading mtl file "' + urlName + '".');
 				var mtls = self.parseMtl(this.responseText);
 				var textures = {};
 				var meshes = scene.getChildren();
@@ -5158,8 +4212,7 @@ JSC3D.ObjLoader.prototype.loadMtlFile = function(scene, urlPath, fileName) {
 			}
 			else {
 				//TODO: when failed to load an mtl file ...
-				if(JSC3D.console)
-					JSC3D.console.logWarning('Failed to load mtl file "' + urlName + '". A default material will be applied.');
+					console.logWarning('Failed to load mtl file "' + urlName + '". A default material will be applied.');
 			}
 			self.requests.splice(self.requests.indexOf(this), 1);
 			if(--self.requestCount == 0)
@@ -5180,7 +4233,7 @@ JSC3D.ObjLoader.prototype.loadMtlFile = function(scene, urlPath, fileName) {
 };
 
 /**
-	Parse contents of the obj file, generating the scene and returning all required mtllibs. 
+	Parse contents of the obj file, generating the scene and returning all required mtllibs.
 	@private
  */
 JSC3D.ObjLoader.prototype.parseObj = function(scene, data) {
@@ -5197,7 +4250,7 @@ JSC3D.ObjLoader.prototype.parseObj = function(scene, data) {
 
 	// create a default mesh to hold all faces that are not associated with any mtl.
 	var defaultMeshName = namePrefix + meshIndex++;
-	var defaultMesh = new JSC3D.Mesh;
+	var defaultMesh = new Mesh;
 	defaultMesh.name = defaultMeshName;
 	defaultMesh.indexBuffer = [];
 	meshes['nomtl'] = defaultMesh;
@@ -5266,7 +4319,7 @@ JSC3D.ObjLoader.prototype.parseObj = function(scene, data) {
 					var mesh = meshes[meshid];
 					if(!mesh) {
 						// create a new mesh to accept faces using the same mtl
-						mesh = new JSC3D.Mesh;
+						mesh = new Mesh;
 						mesh.name = namePrefix + meshIndex++;
 						mesh.indexBuffer = [];
 						mesh.mtllib = curMtllibName;
@@ -5368,7 +4421,7 @@ JSC3D.ObjLoader.prototype.parseMtl = function(data) {
 		if(tokens.length > 0) {
 			var keyword = tokens[0];
 			/*
-			 * This has been fixed by Laurent Piroelle <laurent.piroelle@fabzat.com> to deal with mtl 
+			 * This has been fixed by Laurent Piroelle <laurent.piroelle@fabzat.com> to deal with mtl
 			 * keywords in wrong case caused by some exporting tools.
 			 */
 			switch(keyword) {
@@ -5451,7 +4504,7 @@ JSC3D.ObjLoader.prototype.parseMtl = function(data) {
  */
 JSC3D.ObjLoader.prototype.setupTexture = function(meshList, textureUrlName) {
 	var self = this;
-	var texture = new JSC3D.Texture;
+	var texture = new Texture;
 
 	texture.onready = function() {
 		for(var i=0; i<meshList.length; i++)
@@ -5492,9 +4545,9 @@ JSC3D.StlLoader = function(onload, onerror, onprogress, onresource) {
  */
 JSC3D.StlLoader.prototype.loadFromUrl = function(urlName) {
 	var self = this;
-	var isIE = JSC3D.PlatformInfo.browser == 'ie';
+	var isIE = PlatformInfo.browser == 'ie';
 	//TODO: current blob implementation seems do not work correctly on IE10. Repair it or turn to an arraybuffer implementation.
-	var isIE10Compatible = false;//(isIE && parseInt(JSC3D.PlatformInfo.version) >= 10);
+	var isIE10Compatible = false;//(isIE && parseInt(PlatformInfo.version) >= 10);
 	var xhr = new XMLHttpRequest;
 	xhr.open('GET', encodeURI(urlName), true);
 	if(isIE10Compatible)
@@ -5507,8 +4560,7 @@ JSC3D.StlLoader.prototype.loadFromUrl = function(urlName) {
 	xhr.onreadystatechange = function() {
 		if(this.readyState == 4) {
 			if(this.status == 200 || this.status == 0) {
-				if(JSC3D.console)
-					JSC3D.console.logInfo('Finished loading STL file "' + urlName + '".');
+					console.logInfo('Finished loading STL file "' + urlName + '".');
 				if(self.onload) {
 					if(self.onprogress)
 						self.onprogress('Loading STL file ...', 1);
@@ -5516,7 +4568,7 @@ JSC3D.StlLoader.prototype.loadFromUrl = function(urlName) {
 						// asynchronously decode blob to binary string
 						var blobReader = new FileReader;
 						blobReader.onload = function(event) {
-							var scene = new JSC3D.Scene;
+							var scene = new Scene;
 							scene.srcUrl = urlName;
 							self.parseStl(scene, event.target.result);
 							self.onload(scene);
@@ -5526,7 +4578,7 @@ JSC3D.StlLoader.prototype.loadFromUrl = function(urlName) {
 					else if(isIE) {
 						// decode data from XHR's responseBody into a binary string, since it cannot be accessed directly from javascript.
 						// this would work on IE6~IE9
-						var scene = new JSC3D.Scene;
+						var scene = new Scene;
 						scene.srcUrl = urlName;
 						try {
 							self.parseStl(scene, JSC3D.Util.ieXHRResponseBodyToString(this.responseBody));
@@ -5534,7 +4586,7 @@ JSC3D.StlLoader.prototype.loadFromUrl = function(urlName) {
 						self.onload(scene);
 					}
 					else {
-						var scene = new JSC3D.Scene;
+						var scene = new Scene;
 						scene.srcUrl = urlName;
 						self.parseStl(scene, this.responseText);
 						self.onload(scene);
@@ -5542,8 +4594,7 @@ JSC3D.StlLoader.prototype.loadFromUrl = function(urlName) {
 				}
 			}
 			else {
-				if(JSC3D.console)
-					JSC3D.console.logError('Failed to load STL file "' + urlName + '".');
+					console.logError('Failed to load STL file "' + urlName + '".');
 				if(self.onerror)
 					self.onerror('Failed to load STL file "' + urlName + '".');
 			}
@@ -5593,7 +4644,7 @@ JSC3D.StlLoader.prototype.parseStl = function(scene, data) {
 	var VERTEX_BYTES            = 12;
 	var ATTRIB_BYTE_COUNT_BYTES = 2;
 
-	var mesh = new JSC3D.Mesh;
+	var mesh = new Mesh;
 	mesh.vertexBuffer = [];
 	mesh.indexBuffer = [];
 	mesh.faceNormalBuffer = [];
@@ -5609,27 +4660,25 @@ JSC3D.StlLoader.prototype.parseStl = function(scene, data) {
 			break;
 		}
 	}
+		console.logInfo('This is recognised as ' + (isBinary ? 'a binary' : 'an ASCII') + ' STL file.');
 
-	if(JSC3D.console)
-		JSC3D.console.logInfo('This is recognised as ' + (isBinary ? 'a binary' : 'an ASCII') + ' STL file.');
-	
 	if(!isBinary) {
 		/*
 		 * This should be an ASCII STL file.
 		 * By Triffid Hunter <triffid.hunter@gmail.com>.
 		 */
 
-		var facePattern =	'facet\\s+normal\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+' + 
-								'outer\\s+loop\\s+' + 
-									'vertex\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+' + 
-									'vertex\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+' + 
-									'vertex\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+' + 
-								'endloop\\s+' + 
+		var facePattern =	'facet\\s+normal\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+' +
+								'outer\\s+loop\\s+' +
+									'vertex\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+' +
+									'vertex\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+' +
+									'vertex\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+([-+]?\\b(?:[0-9]*\\.)?[0-9]+(?:[eE][-+]?[0-9]+)?\\b)\\s+' +
+								'endloop\\s+' +
 							'endfacet';
 		var faceRegExp = new RegExp(facePattern, 'ig');
 		var matches = data.match(faceRegExp);
 
-		if(matches) {		
+		if(matches) {
 			var numOfFaces = matches.length;
 
 			mesh.faceCount = numOfFaces;
@@ -5680,13 +4729,12 @@ JSC3D.StlLoader.prototype.parseStl = function(scene, data) {
 		var numOfFaces = reader.readUInt32();
 
 		// calculate the expected length of the stream
-		var expectedLen = HEADER_BYTES + FACE_COUNT_BYTES + 
+		var expectedLen = HEADER_BYTES + FACE_COUNT_BYTES +
 							(FACE_NORMAL_BYTES + VERTEX_BYTES * FACE_VERTICES + ATTRIB_BYTE_COUNT_BYTES) * numOfFaces;
 
 		// is file complete?
 		if(reader.size() < expectedLen) {
-			if(JSC3D.console)
-				JSC3D.console.logError('Failed to parse contents of the file. It seems not complete.');
+				console.logError('Failed to parse contents of the file. It seems not complete.');
 			return;
 		}
 
@@ -5735,9 +4783,9 @@ JSC3D.StlLoader.prototype.parseStl = function(scene, data) {
 	// add mesh to scene
 	if(!mesh.isTrivial()) {
 		// Some tools (Blender etc.) export STLs with empty face normals (all equal to 0). In this case we ...
-		// ... simply set the face normal buffer to null so that they will be calculated in mesh's init stage. 
-		if( Math.abs(mesh.faceNormalBuffer[0]) < 1e-6 && 
-			Math.abs(mesh.faceNormalBuffer[1]) < 1e-6 && 
+		// ... simply set the face normal buffer to null so that they will be calculated in mesh's init stage.
+		if( Math.abs(mesh.faceNormalBuffer[0]) < 1e-6 &&
+			Math.abs(mesh.faceNormalBuffer[1]) < 1e-6 &&
 			Math.abs(mesh.faceNormalBuffer[2]) < 1e-6 ) {
 			mesh.faceNormalBuffer = null;
 		}
@@ -5753,3 +4801,5 @@ JSC3D.StlLoader.prototype.onresource = null;
 JSC3D.StlLoader.prototype.decimalPrecision = 3;
 
 JSC3D.LoaderSelector.registerLoader('stl', JSC3D.StlLoader);
+
+export default JSC3D;

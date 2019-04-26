@@ -1,0 +1,30 @@
+{
+  "name": "jsc3d",
+  "version": "1.0.0",
+  "description": "An esm-compatible fork of the 3d model viewer",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rollup jsc3d/index.js jsc3d/loaders/*.js --format cjs --dir dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/humu2009/jsc3d.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/humu2009/jsc3d/issues"
+  },
+  "homepage": "https://github.com/humu2009/jsc3d#readme",
+  "dependencies": {
+    "hammerjs": "^2.0.8"
+  },
+  "devDependencies": {
+    "rollup": "^1.10.0"
+  },
+  "main": "./index.js",
+  "browser": {
+    "./index.js": "./dist/jsc3d.js",
+    "./ctm-loader": "./dist/ctm-loader.js"
+  }
+}
