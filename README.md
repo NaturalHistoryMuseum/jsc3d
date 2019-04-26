@@ -1,6 +1,7 @@
 # JSC3D (Modular Fork)
 
 A fork of [hmu/jsc3d](https://github.com/humu2009/jsc3d) that adds a `package.json` file and generates a CJS build.
+Used by the [Phenome10k](https://github.com/NaturalHistoryMuseum/phenome-10k/) project.
 
 ## Install
 

@@ -1,21 +1,25 @@
 {
   "name": "jsc3d",
-  "version": "1.0.0",
-  "description": "An esm-compatible fork of the 3d model viewer",
+  "version": "0.1.0",
+  "description": "A fork of the 3d model viewer with CJS-module compatibility",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rollup jsc3d/index.js jsc3d/loaders/*.js --format cjs --dir dist"
+    "build": "rollup jsc3d/index.js jsc3d/loaders/*.js --format cjs --dir dist",
+    "prepare": "npm run build"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/humu2009/jsc3d.git"
+    "url": "git+https://github.com/NaturalHistoryMuseum/jsc3d.git"
   },
-  "author": "",
+  "author": "Vasile Dirla <vasile@dirla.ro>",
+  "contributors": [
+    "Paul Kiddle <p.kiddle@nhm.ac.uk>"
+  ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/humu2009/jsc3d/issues"
+    "url": "https://github.com/NaturalHistoryMuseum/jsc3d/issues"
   },
-  "homepage": "https://github.com/humu2009/jsc3d#readme",
+  "homepage": "https://github.com/NaturalHistoryMuseum/jsc3d#readme",
   "dependencies": {
     "hammerjs": "^2.0.8"
   },
